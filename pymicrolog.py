@@ -265,13 +265,17 @@ class OracleFormula():
 
 
 class Program():
-    rules = None
+    rules = None  # we can calculate this from the rest
     strata = None
     initial = None
     always = None
-    NEXT = None
+    next = None
 
-    def __init__(self, rules, name=None, fnmapping=dict(), reorder_bodies=True):
+    def __init__(self,
+                 rules,
+                 name=None,
+                 fnmapping=dict(),
+                 reorder_bodies=True):
         self.fnmapping = fnmapping
         rules = list(rule.as_rule() for rule in rules)
         for rule in rules:
@@ -303,10 +307,12 @@ class Program():
             elif isinstance(rule.head, Formula):
                 if rule.body is None:
                     self.always.append(rule)
-                elif isinstance(rule.body, (OracleFormula, NegatedOracleFormula)):
+                elif isinstance(rule.body,
+                                (OracleFormula, NegatedOracleFormula)):
                     self.always.append(rule)
                 elif isinstance(rule.body, Conjunction) and all(
-                        isinstance(formula, (OracleFormula, NegatedOracleFormula))
+                        isinstance(formula, (OracleFormula,
+                                             NegatedOracleFormula))
                         for formula in rule.body.as_conjunction()):
                     self.always.append(rule)
                 else:
@@ -315,7 +321,7 @@ class Program():
                 self.next.append(rule)
             else:
                 raise ValueError("Unsupported rule head", rule.head)
-        assert numberOfRules == len(self.initial) + len(self.NEXT) + len(
+        assert numberOfRules == len(self.initial) + len(self.next) + len(
             self.always) + len(unstratified)
         # Create dependency graph
         deps = set()
@@ -323,12 +329,13 @@ class Program():
         def make_edge(head, body):
             if isinstance(body, Formula) and head.fn != body.fn:
                 deps.add((head.fn, 0, body.fn))
+                deps.add((head.fn, 0, head.fn))
             elif isinstance(body, NegatedFormula):
                 deps.add((head.fn, -1, body.orig.fn))
+                deps.add((head.fn, 0, head.fn))
             else:
                 pass
 
-        print(unstratified)
         for rule in unstratified:
             assert rule.body is not None
             if isinstance(rule.body, (Formula, NegatedFormula)):
@@ -338,7 +345,32 @@ class Program():
                     make_edge(rule.head, lit)
             else:
                 raise ValueError("Unsupported Rule configuration", rule)
-        print(deps)
+
+        # calculate a stratification
+        strata = []
+        while deps:  # Algorithm according to Ceri/Gottlob/Tanca 1990
+            this_stratum = set(f for f, val, t in deps)
+            for f, val, t in deps:
+                if val == -1:
+                    this_stratum.discard(f)
+            strata.append(this_stratum)
+            old_deps, deps = deps, set()
+            while old_deps:
+                f, val, t = old_deps.pop()
+                if f in this_stratum or t in this_stratum:
+                    continue
+                deps.add((f, val, t))
+
+        # select rules into strata
+        self.strata = []
+        for stratum in strata:
+            this_stratum = []
+            for rule in unstratified:
+                if rule.head.fn in stratum:
+                    this_stratum.append(rule)
+            self.strata.append(this_stratum)
+        assert sum(len(s) for s in self.strata) == len(
+            unstratified)  # we did not forget a rule
 
     def run(self, cycles=None, cb=None, fnmapping=None):
         fnmapping = {} if fnmapping is None else fnmapping
