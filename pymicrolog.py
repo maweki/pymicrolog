@@ -45,23 +45,23 @@ class Conjunction():
 
     def reorder(self):
 
-        def litOrder(lit):
+        def lit_order(lit):
             return [
                 Formula, NegatedFormula, OracleFormula, NegatedOracleFormula
             ].index(type(lit))
 
         lits = list(self.literals)
-        lits.sort(key=litOrder)
+        lits.sort(key=lit_order)
         return Conjunction(*lits)
 
-    def asConjunction(self):  # very bad name
+    def as_conjunction(self):  # very bad name
         return list(self.literals)
 
     def __repr__(self):
         return " & ".join(repr(l) for l in self.literals)
 
     def __and__(self, other):
-        return Conjunction(*self.asConjunction(), *other.asConjunction())
+        return Conjunction(*self.as_conjunction(), *other.as_conjunction())
 
     def __invert__(self):
         raise ValueError("Cannot negate Conjunction")
@@ -86,7 +86,7 @@ class Relation():
     def __call__(self, *params):
         return Formula(self.relname, params)
 
-    def asConjunction(self):
+    def as_conjunction(self):
         raise ValueError("Missing ()?")
 
     def __invert__(self):
@@ -110,17 +110,17 @@ class Formula():
     def variables(self):
         return frozenset(arg for arg in self.args if isinstance(arg, Variable))
 
-    def asRule(self):
+    def as_rule(self):
         return Rule(head=self)
 
-    def asConjunction(self):
+    def as_conjunction(self):
         return [self]
 
     def __repr__(self):
         return f"{self.fn}{repr(self.args)}"
 
     def __and__(self, other):
-        return Conjunction(*self.asConjunction(), *other.asConjunction())
+        return Conjunction(*self.as_conjunction(), *other.as_conjunction())
 
     def __matmul__(self, other):  # @
         if not isinstance(other, TemporalAnnotation):
@@ -147,15 +147,15 @@ class Rule():
             return f"{repr(self.head)}."
         return f"{repr(self.head)} <- {repr(self.body)}."
 
-    def asRule(self):
+    def as_rule(self):
         return self
 
-    def isRangeRestricted(self):
+    def is_range_restricted(self):
         if self.body is None:
             return not bool(self.head.variables())
         positives = set()
         dependents = set(self.head.variables())
-        for lit in self.body.asConjunction():
+        for lit in self.body.as_conjunction():
             if isinstance(lit, Formula):
                 positives.update(lit.variables())
             else:
@@ -178,7 +178,7 @@ class TempAnnotatedFormula():
         self.args = formula.args
         self.temporalAnnotation = annotation
 
-    def asRule(self):
+    def as_rule(self):
         return Rule(head=self)
 
     def __le__(self, other):
@@ -217,7 +217,7 @@ class NegatedFormula():
     def __init__(self, orig):
         self.orig = orig
 
-    def asConjunction(self):
+    def as_conjunction(self):
         return [self]
 
     def variables(self):
@@ -233,11 +233,11 @@ class NegatedOracleFormula():
     def __init__(self, orig):
         self.orig = orig
 
-    def asConjunction(self):
+    def as_conjunction(self):
         return [self]
 
     def __and__(self, other):
-        return Conjunction(*self.asConjunction(), *other.asConjunction())
+        return Conjunction(*self.as_conjunction(), *other.as_conjunction())
 
     def variables(self):
         return self.orig.variables()
@@ -251,11 +251,11 @@ class OracleFormula():
         self.fn = oracle.fn
         self.args = args
 
-    def asConjunction(self):
+    def as_conjunction(self):
         return [self]
 
     def __and__(self, other):
-        return Conjunction(*self.asConjunction(), *other.asConjunction())
+        return Conjunction(*self.as_conjunction(), *other.as_conjunction())
 
     def __invert__(self):
         return NegatedOracleFormula(self)
@@ -271,19 +271,19 @@ class Program():
     always = None
     NEXT = None
 
-    def __init__(self, rules, name=None, fnmapping=dict(), reorderBodies=True):
+    def __init__(self, rules, name=None, fnmapping=dict(), reorder_bodies=True):
         self.fnmapping = fnmapping
-        rules = list(rule.asRule() for rule in rules)
+        rules = list(rule.as_rule() for rule in rules)
         for rule in rules:
-            if not rule.isRangeRestricted():
+            if not rule.is_range_restricted():
                 raise ValueError("Rule Not Range Restricted", repr(rule))
-        if reorderBodies:
+        if reorder_bodies:
             rules = list((Rule(head=rule.head, body=rule.body.reorder(
             )) if isinstance(rule.body, Conjunction) else rule)
                          for rule in rules)
         numberOfRules = len(rules)
         self.initial = []
-        self.NEXT = []
+        self.next = []
         self.always = []
         unstratified = []
         # Split Rules
@@ -296,7 +296,7 @@ class Program():
                             "Rule Body for START facts must be empty")
                     self.initial.append(rule)
                 elif rule.head.temporalAnnotation is NEXT:
-                    self.NEXT.append(rule)
+                    self.next.append(rule)
                 else:
                     raise ValueError("Unknown Temporal Annotation",
                                      rule.head.temporalAnnotation)
@@ -307,12 +307,12 @@ class Program():
                     self.always.append(rule)
                 elif isinstance(rule.body, Conjunction) and all(
                         isinstance(formula, (OracleFormula, NegatedOracleFormula))
-                        for formula in rule.body.asConjunction()):
+                        for formula in rule.body.as_conjunction()):
                     self.always.append(rule)
                 else:
                     unstratified.append(rule)
             elif isinstance(rule.head, CallFormula):
-                self.NEXT.append(rule)
+                self.next.append(rule)
             else:
                 raise ValueError("Unsupported rule head", rule.head)
         assert numberOfRules == len(self.initial) + len(self.NEXT) + len(
@@ -334,7 +334,7 @@ class Program():
             if isinstance(rule.body, (Formula, NegatedFormula)):
                 make_edge(rule.head, rule.body)
             elif isinstance(rule.body, Conjunction):
-                for lit in rule.body.asConjunction():
+                for lit in rule.body.as_conjunction():
                     make_edge(rule.head, lit)
             else:
                 raise ValueError("Unsupported Rule configuration", rule)
