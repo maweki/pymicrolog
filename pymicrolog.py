@@ -2,21 +2,22 @@ from enum import Enum
 
 
 class TemporalAnnotation(Enum):
-    start = 1
-    next = 2
+    START = 1
+    NEXT = 2
 
     def __repr__(self):
-        if self == start:
-            return "start"
-        if self == next:
-            return "next"
+        if self == START:
+            return "START"
+        if self == NEXT:
+            return "NEXT"
+        return "???"
 
 
-start = TemporalAnnotation.start
-next = TemporalAnnotation.next
+START = TemporalAnnotation.START
+NEXT = TemporalAnnotation.NEXT
 
 
-class Oracle(object):
+class Oracle():
     fn = None
 
     def __init__(self, fn):
@@ -26,7 +27,7 @@ class Oracle(object):
         return OracleFormula(self, args)
 
 
-class Call(object):
+class Call():
     fn = None
 
     def __init__(self, fn):
@@ -36,7 +37,7 @@ class Call(object):
         return CallFormula(self, args)
 
 
-class Conjunction(object):
+class Conjunction():
     literals = None
 
     def __init__(self, *literals):
@@ -66,7 +67,7 @@ class Conjunction(object):
         raise ValueError("Cannot negate Conjunction")
 
 
-class Variable(object):
+class Variable():
     varname = None
 
     def __init__(self, varname):
@@ -76,7 +77,7 @@ class Variable(object):
         return f"Var({self.varname})"
 
 
-class Relation(object):
+class Relation():
     relname = None
 
     def __init__(self, relname):
@@ -91,14 +92,14 @@ class Relation(object):
     def __invert__(self):
         raise ValueError("Missing ()?")
 
-    def __le__(self):
+    def __le__(self, other):
         raise ValueError("Missing ()?")
 
     def __repr__(self):
         return f"R({self.relname})"
 
 
-class Formula(object):
+class Formula():
     fn = None
     args = None
 
@@ -124,8 +125,7 @@ class Formula(object):
     def __matmul__(self, other):  # @
         if not isinstance(other, TemporalAnnotation):
             raise NotImplementedError()
-        else:
-            return TempAnnotatedFormula(self, other)
+        return TempAnnotatedFormula(self, other)
 
     def __le__(self, other):
         return Rule(self, other)
@@ -134,7 +134,7 @@ class Formula(object):
         return NegatedFormula(self)
 
 
-class Rule(object):
+class Rule():
     head = None
     body = None
 
@@ -145,8 +145,7 @@ class Rule(object):
     def __repr__(self):
         if self.body is None:
             return f"{repr(self.head)}."
-        else:
-            return f"{repr(self.head)} <- {repr(self.body)}."
+        return f"{repr(self.head)} <- {repr(self.body)}."
 
     def asRule(self):
         return self
@@ -169,7 +168,7 @@ class Rule(object):
         return self.head.variables() | self.body.variables()
 
 
-class TempAnnotatedFormula(object):
+class TempAnnotatedFormula():
     fn = None
     args = None
     temporalAnnotation = None
@@ -192,7 +191,7 @@ class TempAnnotatedFormula(object):
         return f"{self.fn}{repr(self.args)}@{repr(self.temporalAnnotation)}"
 
 
-class CallFormula(object):
+class CallFormula():
     fn = None
     args = None
 
@@ -204,16 +203,15 @@ class CallFormula(object):
         return frozenset(arg for arg in self.args if isinstance(arg, Variable))
 
     def __matmul__(self, other):
-        if other is not next:
+        if other is not NEXT:
             raise ValueError()
-        else:
-            return self
+        return self
 
     def __le__(self, other):
         return Rule(self, other)
 
 
-class NegatedFormula(object):
+class NegatedFormula():
     orig = None
 
     def __init__(self, orig):
@@ -229,7 +227,7 @@ class NegatedFormula(object):
         return f"~{repr(self.orig)}"
 
 
-class NegatedOracleFormula(object):
+class NegatedOracleFormula():
     orig = None
 
     def __init__(self, orig):
@@ -245,7 +243,7 @@ class NegatedOracleFormula(object):
         return self.orig.variables()
 
 
-class OracleFormula(object):
+class OracleFormula():
     fn = None
     args = None
 
@@ -266,12 +264,12 @@ class OracleFormula(object):
         return frozenset(arg for arg in self.args if isinstance(arg, Variable))
 
 
-class Program(object):
+class Program():
     rules = None
     strata = None
     initial = None
     always = None
-    next = None
+    NEXT = None
 
     def __init__(self, rules, name=None, fnmapping=dict(), reorderBodies=True):
         self.fnmapping = fnmapping
@@ -285,41 +283,39 @@ class Program(object):
                          for rule in rules)
         numberOfRules = len(rules)
         self.initial = []
-        self.next = []
+        self.NEXT = []
         self.always = []
         unstratified = []
         # Split Rules
         while rules:
             rule = rules.pop()
             if isinstance(rule.head, TempAnnotatedFormula):
-                if rule.head.temporalAnnotation is start:
+                if rule.head.temporalAnnotation is START:
                     if rule.body is not None:
                         raise ValueError(
-                            "Rule Body for start facts must be empty")
+                            "Rule Body for START facts must be empty")
                     self.initial.append(rule)
-                elif rule.head.temporalAnnotation is next:
-                    self.next.append(rule)
+                elif rule.head.temporalAnnotation is NEXT:
+                    self.NEXT.append(rule)
                 else:
                     raise ValueError("Unknown Temporal Annotation",
                                      rule.head.temporalAnnotation)
             elif isinstance(rule.head, Formula):
                 if rule.body is None:
                     self.always.append(rule)
-                elif isinstance(rule.body, OracleFormula) or isinstance(
-                        rule.body, NegatedOracleFormula):
+                elif isinstance(rule.body, (OracleFormula, NegatedOracleFormula)):
                     self.always.append(rule)
                 elif isinstance(rule.body, Conjunction) and all(
-                        isinstance(formula, OracleFormula)
-                        or isinstance(formula, NegatedOracleFormula)
+                        isinstance(formula, (OracleFormula, NegatedOracleFormula))
                         for formula in rule.body.asConjunction()):
                     self.always.append(rule)
                 else:
                     unstratified.append(rule)
             elif isinstance(rule.head, CallFormula):
-                self.next.append(rule)
+                self.NEXT.append(rule)
             else:
                 raise ValueError("Unsupported rule head", rule.head)
-        assert numberOfRules == len(self.initial) + len(self.next) + len(
+        assert numberOfRules == len(self.initial) + len(self.NEXT) + len(
             self.always) + len(unstratified)
         # Create dependency graph
         deps = set()
@@ -335,8 +331,7 @@ class Program(object):
         print(unstratified)
         for rule in unstratified:
             assert rule.body is not None
-            if isinstance(rule.body, Formula) or isinstance(
-                    rule.body, NegatedFormula):
+            if isinstance(rule.body, (Formula, NegatedFormula)):
                 make_edge(rule.head, rule.body)
             elif isinstance(rule.body, Conjunction):
                 for lit in rule.body.asConjunction():
@@ -345,13 +340,14 @@ class Program(object):
                 raise ValueError("Unsupported Rule configuration", rule)
         print(deps)
 
-    def run(self, cycles=None, cb=None, fnmapping=dict()):
+    def run(self, cycles=None, cb=None, fnmapping=None):
+        fnmapping = {} if fnmapping is None else fnmapping
         pass
 
-    def run_cb(self, cycles=None, cb=None, fnmapping=dict()):
+    def run_cb(self, cycles=None, cb=None, fnmapping={}):
         pass
 
-    def run_yield(self, cycles=None, fnmapping=dict()):
+    def run_yield(self, cycles=None, fnmapping={}):
         pass
 
 
