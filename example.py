@@ -28,5 +28,14 @@ rules = [
   tcall2()@NEXT <= ~a(7),
 ]
 
+for no, rule in enumerate(rules):
+  print("RULE", no, ":\t", rule)
+
 p = Program(rules, name="Testprogram")
 p.run(cycles=5, fnmapping={"time": time.time})
+
+print(mylt(5, X).apply_substitution({X: 7}).eval())
+data = set([(a, (5,5)),(a, (7,5))])
+for subst in a(Y, X).substitutions(data):
+    print(subst)
+print((~a(5, ...)).exists(data))

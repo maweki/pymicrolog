@@ -84,7 +84,7 @@ class Relation():
         self.relname = relname
 
     def __call__(self, *params):
-        return Formula(self.relname, params)
+        return Formula(self, params)
 
     def as_conjunction(self):
         raise ValueError("Missing ()?")
@@ -105,7 +105,7 @@ class Formula():
 
     def __init__(self, fn, args):
         self.fn = fn
-        self.args = args
+        self.args = tuple(args)
 
     def variables(self):
         return frozenset(arg for arg in self.args if isinstance(arg, Variable))
@@ -132,6 +132,33 @@ class Formula():
 
     def __invert__(self):
         return NegatedFormula(self)
+
+    def apply_substitution(self, substitution):
+        new_args = [substitute_argument(arg, substitution) for arg in self.args]
+        return Formula(self.fn, new_args)
+
+    def substitutions(self, data, partial_substitutions=None):
+        if partial_substitutions is None:
+            partial_substitutions = {}
+        matches = set()
+        for rel, data_args in data:
+            if rel != self.fn:
+                continue
+            for my_arg, data_arg in zip(self.args, data_args):
+                if my_arg is Ellipsis:
+                    continue
+                if isinstance(my_arg, Variable):
+                    match = (my_arg, data_arg)
+                    if match in matches:
+                        break
+                    matches.add(match)
+                if my_arg != data_arg:
+                    break
+            else:
+                yield partial_substitutions
+        for match in matches:
+          partial = dict((match,))
+          yield from self.apply_substitution(partial).substitutions(data, partial_substitutions | partial)
 
 
 class Rule():
@@ -226,6 +253,11 @@ class NegatedFormula():
     def __repr__(self):
         return f"~{repr(self.orig)}"
 
+    def exists(self, data): # bad name
+        for _ in self.orig.substitutions(data):
+          return True
+        return False
+
 
 class NegatedOracleFormula():
     orig = None
@@ -242,6 +274,20 @@ class NegatedOracleFormula():
     def variables(self):
         return self.orig.variables()
 
+    def __repr__(self):
+        return '~'+repr(self.orig)
+
+    def eval(self):
+        return not self.orig.eval()
+
+    def apply_substitution(self, substitution):
+        new_args = [substitute_argument(arg, substitution) for arg in self.orig.args]
+        return NegatedOracleFormula(self.orig, new_args)
+
+def substitute_argument(arg, substitution):
+    if isinstance(arg, Variable) and arg in substitution:
+        return substitution[arg]
+    return arg
 
 class OracleFormula():
     fn = None
@@ -250,6 +296,10 @@ class OracleFormula():
     def __init__(self, oracle, args):
         self.fn = oracle.fn
         self.args = args
+
+    def apply_substitution(self, substitution):
+        new_args = [substitute_argument(arg, substitution) for arg in self.args]
+        return OracleFormula(self, new_args)
 
     def as_conjunction(self):
         return [self]
@@ -262,6 +312,12 @@ class OracleFormula():
 
     def variables(self):
         return frozenset(arg for arg in self.args if isinstance(arg, Variable))
+
+    def __repr__(self):
+        return repr(self.fn) + repr(self.args)
+
+    def eval(self):
+        return self.fn(*self.args)
 
 
 class Program():
@@ -374,13 +430,42 @@ class Program():
 
     def run(self, cycles=None, cb=None, fnmapping=None):
         fnmapping = {} if fnmapping is None else fnmapping
-        pass
+
+        initial_facts = initial_facts_to_model(self.initial)
+        print(initial_facts)
+        s0 = apply_rules(self.always, initial_facts)
+        print(s0)
+
+
 
     def run_cb(self, cycles=None, cb=None, fnmapping={}):
         pass
 
     def run_yield(self, cycles=None, fnmapping={}):
         pass
+
+def formula_to_fact(formula):
+    return (formula.fn, formula.args)
+
+def initial_facts_to_model(init):
+    return set(formula_to_fact(rule.head) for rule in init)
+
+def apply_rules(rules, model):
+    new_facts = set()
+    for rule in rules:
+        if rule.body is None:
+            new_facts.add(formula_to_fact(rule.head))
+        body = rule.body.as_conjunction()
+        print(body)
+    return new_facts - model
+
+def step(rules_always, rules_stratified, rules_next, init, fnmapping):
+    changed = False
+
+
+    return init
+
+
 
 
 def relation(relname):
