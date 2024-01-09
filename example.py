@@ -24,18 +24,31 @@ rules = [
   b(X, X) <= b(..., X),
   c() <= ~b(..., ...),
   d() <= a(...) & b(X, X),
+  b(X, Y) <= tcall1(X) & tcall2(Y),
   tcall1()@NEXT <= a(2),
   tcall2()@NEXT <= ~a(7),
 ]
 
-for no, rule in enumerate(rules):
-  print("RULE", no, ":\t", rule)
+s1 = [
+  a(7)@START,
+  a(X)@NEXT <= a(X),
+]
+
+s2 = [
+  b(7, 5),
+  b(8, 8),
+  b(X, X) <= b(X, ...),
+  d() <= b(X, X),
+]
+
+# for no, rule in enumerate(rules):
+#   print("RULE", no, ":\t", rule)
 
 p = Program(rules, name="Testprogram")
 p.run(cycles=5, fnmapping={"time": time.time})
 
-print(mylt(5, X).apply_substitution({X: 7}).eval())
-data = set([(a, (5,5)),(a, (7,5))])
-for subst in a(Y, X).substitutions(data):
-    print(subst)
-print((~a(5, ...)).exists(data))
+# print(mylt(5, X).apply_substitution({X: 7}).eval())
+# data = set([(a, (5,5)),(a, (7,5))])
+# for subst in a(Y, X).substitutions(data):
+#     print(subst)
+# print((~a(5, ...)).exists(data))
