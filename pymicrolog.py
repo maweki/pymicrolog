@@ -161,7 +161,7 @@ class Formula():
         fnmapping = {} if fnmapping is None else fnmapping
         matches = set()
         for rel, data_args in data:
-            if rel != self.fn:
+            if fnmapping.get(rel, rel) != fnmapping.get(self.fn, self.fn):
                 continue
             # this data matches function symbol
             bound_variables = set()
@@ -249,6 +249,9 @@ class CallFormula():
     def __init__(self, oracle, args):
         self.fn = oracle.fn
         self.args = tuple(args)
+
+    def as_rule(self):
+        return Rule(head=self)
 
     def variables(self):
         return frozenset(arg for arg in self.args if isinstance(arg, Variable))
@@ -439,6 +442,8 @@ class Program():
         deps = set()
 
         def make_edge(head, body):
+            if isinstance(head, Formula):
+                deps.add((head.fn, 0, head.fn))
             if isinstance(body, Formula):
                 deps.add((head.fn, 0, body.fn))
                 deps.add((head.fn, 0, head.fn))
@@ -455,6 +460,8 @@ class Program():
             elif isinstance(rule.body, Conjunction):
                 for lit in rule.body.as_list():
                     make_edge(rule.head, lit)
+            elif isinstance(rule.body, CallFormula):
+                make_edge(rule.head, None)
             else:
                 raise ValueError("Unsupported Rule configuration", rule)
 
@@ -484,7 +491,15 @@ class Program():
         assert sum(len(s) for s in self.strata) == len(
             unstratified)  # we did not forget a rule
 
-    def run(self, cycles=None, cb=None, fnmapping=None):
+    def run(self, cycles=None, fnmapping=None):
+        for iofacts in self.run_generator(cycles, fnmapping):
+            pass
+
+    def run_cb(self, cycles=None, cb=None, fnmapping=None, extended_state=False):
+        for iofacts in self.run_generator(cycles, fnmapping, extended_state):
+            cb(iofacts)
+
+    def run_generator(self, cycles=None, fnmapping=None, extended_state=False):
         fnmapping = {} if fnmapping is None else fnmapping
         fnmapping = self.fnmapping | fnmapping
 
@@ -495,32 +510,31 @@ class Program():
                 break
             for stratum in [self.always] + self.strata:
                 while True:
-                    new_facts = apply_rules(stratum, model)
+                    new_facts = apply_rules(stratum, model, fnmapping)
                     if not new_facts - model:
                         break
                     model = model | new_facts
             tentative_next_model = apply_rules(self.next, model, fnmapping)
-            if cycles is not None:
-                cycles = cycles - 1
             next_model = tentative_next_model
             next_model = set()
+            iofacts = set()
             for fact_head, fact_args in tentative_next_model:
                 if isinstance(fact_head, Relation):
                     next_model.add((fact_head, fact_args))
                 elif callable(fact_head):
                     return_value = fact_head(*fact_args)
                     if isinstance(return_value, tuple):
-                        next_model.add((fact_head, fact_args + return_value))
+                        iofact = (fact_head, fact_args + return_value)
                     else:
-                        next_model.add((fact_head, fact_args + (return_value,)))
-            print(next_model)
-            model = next_model
-
-    def run_cb(self, cycles=None, cb=None, fnmapping={}):
-        pass
-
-    def run_yield(self, cycles=None, fnmapping={}):
-        pass
+                        iofact = (fact_head, fact_args + (return_value,))
+                    iofacts.add(iofact)
+            model = next_model | iofacts
+            if extended_state:
+                yield frozenset(model)
+            else:
+                yield frozenset(iofacts)
+            if cycles is not None:
+                cycles = cycles - 1
 
 def formula_to_fact(formula, fnmapping=None):
     fnmapping = {} if fnmapping is None else fnmapping
