@@ -10,7 +10,7 @@ class TemporalAnnotation(Enum):
             return "START"
         if self == NEXT:
             return "NEXT"
-        return "???"
+        raise NotImplementedError()
 
 
 START = TemporalAnnotation.START
