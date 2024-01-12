@@ -32,8 +32,8 @@ besides = relation("besides")
 besides_facts = [besides(X+1,X) for X in range(6)]
 
 C, R, P = variables(*"CRP")
-C2 = variable("C2")
-R2 = variable("R2")
+C1, C2, C3, C4 = variables("C1", "C2", "C3", "C4")
+R1, R2, R3, R4 = variables("R1", "R2", "R3", "R4")
 P2 = variable("R2")
 
 marker = relation("marker")
@@ -59,8 +59,6 @@ get_drop_rule = [
     current_player(P)@NEXT <= ~dropped(...,...) & current_player(P),
 ]
 
-C1, C2, C3, C4 = variables("C1", "C2", "C3", "C4")
-R1, R2, R3, R4 = variables("R1", "R2", "R3", "R4")
 winner_rules = [
   winner(P) <= player(P) & marker(C1, R, P) & besides(C1, C2) & besides(C2, C3) & besides(C3, C4) & marker(C2, R, P) & marker(C3, R, P) & marker(C4, R, P),
   winner(P) <= player(P) & marker(C, R1, P) & top_of(R1, R2) & top_of(R2, R3) & top_of(R3, R4) & marker(C, R2, P) & marker(C, R3, P) & marker(C, R4, P),
