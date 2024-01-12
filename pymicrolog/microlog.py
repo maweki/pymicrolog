@@ -85,6 +85,9 @@ class Variable():
     def __init__(self, varname):
         self.varname = varname
 
+    def __hash__(self):
+        return hash((Variable, self.varname))
+
     def __repr__(self):
         return "Var({})".format(self.varname)
 
