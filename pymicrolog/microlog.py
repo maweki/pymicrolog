@@ -62,7 +62,7 @@ class Conjunction():
             return
         first_lit, *rest = self.literals
         for subst in first_lit.substitutions(data, partial_substitutions, fnmapping):
-            full_subst = subst | partial_substitutions
+            full_subst = {**subst, **partial_substitutions}
             new_conjunction = Conjunction(*[other_lits.apply_substitution(full_subst) for other_lits in rest])
             yield from new_conjunction.substitutions(data, partial_substitutions=full_subst, fnmapping=fnmapping)
 
@@ -86,7 +86,7 @@ class Variable():
         self.varname = varname
 
     def __repr__(self):
-        return f"Var({self.varname})"
+        return "Var({})".format(self.varname)
 
 
 class Relation():
@@ -108,7 +108,7 @@ class Relation():
         raise ValueError("Missing ()?")
 
     def __repr__(self):
-        return f"R({self.relname})"
+        return "R({})".format(self.relname)
 
 
 class Formula():
@@ -129,7 +129,7 @@ class Formula():
         return [self]
 
     def __repr__(self):
-        return f"{self.fn}{repr(self.args)}"
+        return "{}{}".format(self.fn, repr(self.args))
 
     def __and__(self, other):
         return Conjunction(*self.as_list(), *other.as_list())
@@ -180,7 +180,7 @@ class Formula():
                 if len(bound_variables) == len(single_match):
                     matches.add(frozenset(single_match))
         for match in matches:
-          yield dict(match) | partial_substitutions
+          yield {**dict(match), **partial_substitutions}
 
 class Rule():
     head = None
@@ -192,8 +192,8 @@ class Rule():
 
     def __repr__(self):
         if self.body is None:
-            return f"{repr(self.head)}."
-        return f"{repr(self.head)} <- {repr(self.body)}."
+            return "{}.".format(repr(self.head))
+        return "{} <- {}.".format(repr(self.head), repr(self.body))
 
     def as_rule(self):
         return self
@@ -236,7 +236,7 @@ class TempAnnotatedFormula():
         return Formula(self.fn, self.args).variables()
 
     def __repr__(self):
-        return f"{self.fn}{repr(self.args)}@{repr(self.temporalAnnotation)}"
+        return "{}{}@{}".format(self.fn, repr(self.args), repr(self.temporalAnnotation))
 
     def apply_substitution(self, substitution):
         return TempAnnotatedFormula(Formula(self.fn, self.args).apply_substitution(substitution), self.temporalAnnotation)
@@ -295,7 +295,7 @@ class NegatedFormula():
         return self.orig.variables()
 
     def __repr__(self):
-        return f"~{repr(self.orig)}"
+        return "~{}".format(repr(self.orig))
 
     def substitutions(self, data, partial_substitutions=None, fnmapping=None):
         partial_substitutions = {} if partial_substitutions is None else partial_substitutions
@@ -501,7 +501,7 @@ class Program():
 
     def run_generator(self, cycles=None, fnmapping=None, extended_state=False):
         fnmapping = {} if fnmapping is None else fnmapping
-        fnmapping = self.fnmapping | fnmapping
+        fnmapping = {**self.fnmapping, **fnmapping}
 
         initial_facts = initial_facts_to_model(self.initial)
         model = initial_facts
