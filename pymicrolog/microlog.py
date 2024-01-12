@@ -88,6 +88,30 @@ class Variable():
     def __repr__(self):
         return "Var({})".format(self.varname)
 
+    def __lt__(self, other):
+        import operator
+        return oracle(operator.lt)(self, other)
+
+    def __le__(self, other):
+        import operator
+        return oracle(operator.le)(self, other)
+
+    def __eq__(self, other):
+        import operator
+        return oracle(operator.eq)(self, other)
+
+    def __ne__(self, other):
+        import operator
+        return oracle(operator.ne)(self, other)
+
+    def __ge__(self, other):
+        import operator
+        return oracle(operator.ge)(self, other)
+
+    def __gt__(self, other):
+        import operator
+        return oracle(operator.gt)(self, other)
+
 
 class Relation():
     relname = None

@@ -22,7 +22,7 @@ console_out = call(print)
 rules = [
     sensor_get_value(i1)@NEXT,
     lightval(L) <= sensor_get_value(i1, L),
-    onLine() <= lightval(L) & lt(L, 20),
+    onLine() <= lightval(L) & lt(L, 20), # can be written as (L < 20)
     console_out(L)@NEXT <= lightval(L),
 
     tacho_go(m1, 50)@NEXT <= onLine(),
