@@ -1,5 +1,5 @@
 from enum import Enum
-
+from itertools import zip_longest
 
 class TemporalAnnotation(Enum):
     START = 1
@@ -190,7 +190,7 @@ class Formula():
             # this data matches function symbol
             bound_variables = set()
             single_match = set()
-            for my_arg, data_arg in zip(self.args, data_args):
+            for my_arg, data_arg in zip_longest(self.args, data_args):
                 if my_arg is Ellipsis:
                     continue
                 if isinstance(my_arg, Variable):
