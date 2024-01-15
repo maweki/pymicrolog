@@ -548,7 +548,6 @@ class Program():
                         break
                     model = model | new_facts
             tentative_next_model = apply_rules(self.next, model, fnmapping)
-            next_model = tentative_next_model
             next_model = set()
             iofacts = set()
             for fact_head, fact_args in tentative_next_model:
