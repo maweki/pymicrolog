@@ -595,6 +595,7 @@ class Program():
                         iofact = (fact_head, fact_args + (return_value,))
                     while len(iofact[1]) > max_arg_size:
                         model_db_cursor.execute("ALTER TABLE model ADD c" + str(max_arg_size))
+                        # we don't need to update the index because we only extend the table for return values, while duplicate checking is on the original values
                         max_arg_size += 1
                     model_db_cursor.execute(fact_to_sql_insert(iofact, state=1))
                     iofacts.add(iofact)
