@@ -48,7 +48,7 @@ class Conjunction():
 
         def lit_order(lit):
             return [
-                Formula, CallFormula, NegatedFormula, OracleFormula, NegatedOracleFormula
+                Formula, CallFormula, NegatedFormula, NegatedCallFormula, OracleFormula, NegatedOracleFormula
             ].index(type(lit))
 
         lits = list(self.literals)
@@ -289,6 +289,9 @@ class CallFormula():
             raise ValueError()
         return self
 
+    def __invert__(self):
+        return NegatedCallFormula(self)
+
     def __le__(self, other):
         return Rule(self, other)
 
@@ -309,6 +312,33 @@ class CallFormula():
         yield from Formula(fn, self.args).substitutions(data, partial_substitutions, fnmapping)
         # Here we need to package the call
 
+class NegatedCallFormula():
+    orig = None
+
+    def __init__(self, orig):
+        self.orig = orig
+
+    def as_list(self):
+        return [self]
+
+    def variables(self):
+        return self.orig.variables()
+
+    def __repr__(self):
+        return "~{}".format(repr(self.orig))
+
+    def __and__(self, other):
+        return Conjunction(*self.as_list(), *other.as_list())
+
+    def apply_substitution(self, substitution):
+        return NegatedCallFormula(self.orig.apply_substitution(substitution))
+
+    def substitutions(self, data, partial_substitutions=None, fnmapping=None):
+        partial_substitutions = {} if partial_substitutions is None else partial_substitutions
+        fnmapping = {} if fnmapping is None else fnmapping
+        for _ in self.orig.substitutions(data, partial_substitutions, fnmapping):
+            return
+        yield partial_substitutions
 
 class NegatedFormula():
     orig = None
