@@ -506,14 +506,10 @@ class Program():
         deps = set()
 
         def make_edge(head, body):
-            if isinstance(head, Formula):
-                deps.add((head.fn, 0, head.fn))
             if isinstance(body, Formula):
                 deps.add((head.fn, 0, body.fn))
-                deps.add((head.fn, 0, head.fn))
             elif isinstance(body, NegatedFormula):
                 deps.add((head.fn, -1, body.orig.fn))
-                deps.add((head.fn, 0, head.fn))
             else:
                 pass
 
@@ -525,9 +521,26 @@ class Program():
                 for lit in rule.body.as_list():
                     make_edge(rule.head, lit)
             elif isinstance(rule.body, CallFormula):
-                make_edge(rule.head, None)
+                pass
             else:
                 raise ValueError("Unsupported Rule configuration", rule)
+
+        # calculate reachability
+        import itertools
+        rels = set(f for f, val, t in deps) | set(t for f, val, t in deps)
+        edeps = set()
+        for r in rels:
+          reachable = {r: 0}
+          while True:
+            traversal = (len(reachable), sum(reachable.values()))
+            for df, v, dt in deps:
+              if df in reachable:
+                reachable[dt] = min(v, reachable.get(dt, 0), reachable.get(df, 0))
+            if traversal == (len(reachable), sum(reachable.values())):
+              break
+          for reach in reachable:
+            edeps.add((r, reachable[reach] ,reach))
+        deps = edeps
 
         # calculate a stratification
         strata = []
