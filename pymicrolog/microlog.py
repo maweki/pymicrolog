@@ -505,6 +505,8 @@ class Program():
         deps = set()
 
         def make_edge(head, body):
+            if isinstance(head, Formula):
+                deps.add((head.fn, 0, head.fn))
             if isinstance(body, Formula):
                 deps.add((head.fn, 0, body.fn))
             elif isinstance(body, NegatedFormula):
