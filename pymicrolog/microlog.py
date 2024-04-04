@@ -187,6 +187,7 @@ class Formula():
         partial_substitutions = {} if partial_substitutions is None else partial_substitutions
         fnmapping = {} if fnmapping is None else fnmapping
         matches = set()
+        # if there are no variables in self.args, we can just do a simple contains-check, right?
         for rel, data_args in data:
             if fnmapping.get(rel, rel) != fnmapping.get(self.fn, self.fn):
                 continue
