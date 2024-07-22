@@ -1,4 +1,4 @@
-from pymicrolog import *
+from pymicrolog.sqlite import *
 
 board = {}
 
